@@ -7,6 +7,8 @@ on:
 jobs:
   core:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+psycopg://toptenug:toptenug@localhost:5432/toptenug
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -27,9 +29,16 @@ jobs:
         with:
           python-version: "3.13"
       - run: cd services/core && uv sync --all-extras
+      - name: Verify migrations up/down/up
+        run: |
+          cd services/core
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
       - run: cd services/core && uv run ruff check .
       - run: cd services/core && uv run mypy app
       - run: cd services/core && uv run pytest -q
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +49,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/web install --frozen-lockfile=false
       - run: pnpm --dir apps/web lint
       - run: pnpm --dir apps/web test
+      - run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - run: pnpm --dir apps/web exec playwright test
