@@ -87,3 +87,69 @@ class RankingEngine:
             )
             for index, (candidate, score, breakdown, coverage, meets_coverage) in enumerate(ordered, start=1)
         ]
+
+    def run_metric(self, metric_key: str, candidates: list[CandidateMetrics]) -> list[ScoredCandidate]:
+        scored: list[tuple[CandidateMetrics, float]] = []
+        for candidate in candidates:
+            if not candidate.eligible:
+                continue
+            value = candidate.metrics.get(metric_key)
+            if value is None:
+                continue
+            scored.append((candidate, float(value)))
+        ordered = sorted(scored, key=lambda row: (-row[1], str(row[0].entity_id)))
+        return [
+            ScoredCandidate(
+                entity_id=candidate.entity_id,
+                score=score,
+                rank=rank,
+                factor_breakdown={
+                    metric_key: FactorScore(
+                        normalized=None, weight=1.0, missing=False, missing_policy="exclude_missing"
+                    )
+                },
+                factor_coverage=1.0,
+                meets_minimum_coverage=True,
+            )
+            for rank, (candidate, score) in enumerate(ordered, start=1)
+        ]
+
+    def run_trend(
+        self,
+        metric_key: str,
+        *,
+        current: list[CandidateMetrics],
+        baseline: list[CandidateMetrics],
+    ) -> list[ScoredCandidate]:
+        baseline_by_id = {candidate.entity_id: candidate for candidate in baseline if candidate.eligible}
+        scored: list[tuple[CandidateMetrics, float]] = []
+        for candidate in current:
+            if not candidate.eligible:
+                continue
+            previous = baseline_by_id.get(candidate.entity_id)
+            current_value = candidate.metrics.get(metric_key)
+            baseline_value = None if previous is None else previous.metrics.get(metric_key)
+            if current_value is None or baseline_value is None:
+                continue
+            baseline_number = float(baseline_value)
+            current_number = float(current_value)
+            if baseline_number == 0:
+                continue
+            change = (current_number - baseline_number) / abs(baseline_number)
+            scored.append((candidate, change))
+        ordered = sorted(scored, key=lambda row: (-row[1], str(row[0].entity_id)))
+        return [
+            ScoredCandidate(
+                entity_id=candidate.entity_id,
+                score=round(score, 8),
+                rank=rank,
+                factor_breakdown={
+                    f"trend:{metric_key}": FactorScore(
+                        normalized=None, weight=1.0, missing=False, missing_policy="require_baseline"
+                    )
+                },
+                factor_coverage=1.0,
+                meets_minimum_coverage=True,
+            )
+            for rank, (candidate, score) in enumerate(ordered, start=1)
+        ]
