@@ -1,0 +1,46 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/**"]
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: toptenug
+          POSTGRES_USER: toptenug
+          POSTGRES_PASSWORD: toptenug
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U toptenug -d toptenug"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+      - run: cd services/core && uv sync --all-extras
+      - run: cd services/core && uv run ruff check .
+      - run: cd services/core && uv run mypy app
+      - run: cd services/core && uv run pytest -q
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/web lint
+      - run: pnpm --dir apps/web test
