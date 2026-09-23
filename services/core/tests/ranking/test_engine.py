@@ -59,3 +59,34 @@ def test_engine_has_no_ai_dependency():
     source = Path("app/ranking/engine.py").read_text()
     assert "google.genai" not in source
     assert "Gemini" not in source
+
+
+def test_metric_ranking_sorts_observable_metric_and_excludes_missing():
+    engine = RankingEngine()
+    candidates = [
+        CandidateMetrics(entity_id=UUID(int=2), metrics={"github.followers": 10}),
+        CandidateMetrics(entity_id=UUID(int=1), metrics={"github.followers": 25}),
+        CandidateMetrics(entity_id=UUID(int=3), metrics={"github.followers": None}),
+    ]
+    results = engine.run_metric("github.followers", candidates)
+    assert [(row.entity_id, row.score, row.rank) for row in results] == [
+        (UUID(int=1), 25.0, 1),
+        (UUID(int=2), 10.0, 2),
+    ]
+
+
+def test_trend_ranking_requires_baseline_and_ranks_growth():
+    engine = RankingEngine()
+    current = [
+        CandidateMetrics(entity_id=UUID(int=1), metrics={"github.followers": 150}),
+        CandidateMetrics(entity_id=UUID(int=2), metrics={"github.followers": 220}),
+        CandidateMetrics(entity_id=UUID(int=3), metrics={"github.followers": 10}),
+    ]
+    baseline = [
+        CandidateMetrics(entity_id=UUID(int=1), metrics={"github.followers": 100}),
+        CandidateMetrics(entity_id=UUID(int=2), metrics={"github.followers": 200}),
+    ]
+    results = engine.run_trend("github.followers", current=current, baseline=baseline)
+    assert [row.entity_id for row in results] == [UUID(int=1), UUID(int=2)]
+    assert results[0].score == 0.5
+    assert results[1].score == 0.1
