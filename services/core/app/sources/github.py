@@ -48,12 +48,17 @@ class GitHubAdapter:
         now = self.clock().astimezone(UTC)
         profile = (await self._request("GET", f"/users/{login}")).json()
         repos = (await self._request("GET", f"/users/{login}/repos", params={"per_page": 100, "sort": "pushed"})).json()
+        window_start = now - timedelta(days=90)
+
+        def iso(value: datetime) -> str:
+            return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
         graph = (await self._request(
             "POST",
             "/graphql",
             json={
-                "query": "query($login:String!){user(login:$login){contributionsCollection{totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions}}}",
-                "variables": {"login": login},
+                "query": "query($login:String!,$from:DateTime!,$to:DateTime!){user(login:$login){contributionsCollection(from:$from,to:$to){totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions}}}",
+                "variables": {"login": login, "from": iso(window_start), "to": iso(now)},
             },
         )).json()
 
