@@ -18,6 +18,7 @@ class PublicRankingResult:
     previous_rank: int | None = None
     factor_breakdown: dict[str, object] | None = None
     evidence_urls: tuple[str, ...] = ()
+    id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,13 @@ class PublicReadStore:
         if quarter is not None:
             return next((run for run in runs if run.quarter == quarter), None)
         return runs[0] if runs else None
+
+    def find_published_result(self, result_id: UUID):
+        for run in self.published_runs():
+            for result in run.results:
+                if result.id == result_id:
+                    return run, result
+        return None
 
 
 public_store = PublicReadStore()
