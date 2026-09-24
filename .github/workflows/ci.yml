@@ -1,0 +1,37 @@
+name: CI
+on:
+  push: {branches: [main, feat/toptenug-mvp-vertical]}
+  pull_request:
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: {POSTGRES_DB: toptenug, POSTGRES_USER: toptenug, POSTGRES_PASSWORD: toptenug}
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U toptenug -d toptenug" --health-interval 5s --health-timeout 5s --health-retries 10
+    env: {DATABASE_URL: "postgresql+psycopg://toptenug:toptenug@localhost:5432/toptenug"}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {python-version: "3.13"}
+      - run: uv sync --project services/core --all-groups
+      - run: cd services/core && uv run alembic upgrade head
+      - run: uv run --project services/core ruff check services/core
+      - run: uv run --project services/core mypy services/core/app
+      - run: uv run --project services/core pytest -q services/core/tests
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.14.0, run_install: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/web lint
+      - run: pnpm --dir apps/web test
+      - run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - run: pnpm --dir apps/web exec playwright test
