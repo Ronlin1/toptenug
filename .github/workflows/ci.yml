@@ -8,14 +8,14 @@ jobs:
   core:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql+psycopg://toptenug:toptenug@localhost:5432/toptenug
+      DATABASE_URL: postgresql+psycopg://toptenug@localhost:5432/toptenug
     services:
       postgres:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: toptenug
           POSTGRES_USER: toptenug
-          POSTGRES_PASSWORD: toptenug
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
