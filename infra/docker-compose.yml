@@ -4,9 +4,10 @@ services:
     environment:
       POSTGRES_DB: toptenug
       POSTGRES_USER: toptenug
-      POSTGRES_PASSWORD: toptenug
+      # Local development only. No password is stored in git; the port is bound to loopback.
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - toptenug_pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
