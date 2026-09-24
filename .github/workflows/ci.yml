@@ -8,11 +8,15 @@ jobs:
     services:
       postgres:
         image: pgvector/pgvector:pg16
-        env: {POSTGRES_DB: toptenug, POSTGRES_USER: toptenug, POSTGRES_PASSWORD: toptenug}
+        env:
+          POSTGRES_DB: toptenug
+          POSTGRES_USER: toptenug
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: [5432:5432]
         options: >-
           --health-cmd "pg_isready -U toptenug -d toptenug" --health-interval 5s --health-timeout 5s --health-retries 10
-    env: {DATABASE_URL: "postgresql+psycopg://toptenug:toptenug@localhost:5432/toptenug"}
+    env:
+      DATABASE_URL: "postgresql+psycopg://toptenug@localhost:5432/toptenug"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
