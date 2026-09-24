@@ -7,7 +7,7 @@ from os import getenv
 class Settings:
     database_url: str = getenv(
         "DATABASE_URL",
-        "postgresql+psycopg://toptenug:toptenug@localhost:5432/toptenug",
+        "postgresql+psycopg://toptenug@localhost:5432/toptenug",
     )
     github_token: str | None = getenv("GITHUB_TOKEN")
     github_api_base_url: str = getenv("GITHUB_API_BASE_URL", "https://api.github.com")
