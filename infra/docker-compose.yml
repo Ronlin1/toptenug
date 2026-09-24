@@ -1,8 +1,20 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    environment: {POSTGRES_DB: toptenug, POSTGRES_USER: toptenug, POSTGRES_PASSWORD: toptenug}
-    ports: ["5432:5432"]
-    volumes: ["toptenug_pgdata:/var/lib/postgresql/data", "./postgres/init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro"]
-    healthcheck: {test: ["CMD-SHELL", "pg_isready -U toptenug -d toptenug"], interval: 5s, timeout: 5s, retries: 10}
-volumes: {toptenug_pgdata: {}}
+    environment:
+      POSTGRES_DB: toptenug
+      POSTGRES_USER: toptenug
+      # Local development only. No password is stored in git; the port is bound to loopback.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - toptenug_pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toptenug -d toptenug"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  toptenug_pgdata: {}
