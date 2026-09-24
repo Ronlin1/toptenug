@@ -1,0 +1,13 @@
+name: DevRankUG
+version: 1.0.0
+ranking_type: INDEX
+eligibility_policy: ugandan_or_uganda_based_technology_builder
+missing_data_policy: renormalize_available
+minimum_factor_coverage: 0.60
+tie_breaker: canonical_entity_id
+factors:
+  project_adoption: {weight: 0.30, metric: github.owned_repo_stars, normalization: log1p}
+  contribution_activity: {weight: 0.25, metric: github.contributions_90d, normalization: percentile}
+  project_breadth: {weight: 0.15, metric: github.active_owned_repos_180d, normalization: capped_min_max}
+  audience: {weight: 0.10, metric: github.followers, normalization: log1p}
+  collaboration: {weight: 0.20, metric: github.prs_and_reviews_90d, normalization: percentile}
