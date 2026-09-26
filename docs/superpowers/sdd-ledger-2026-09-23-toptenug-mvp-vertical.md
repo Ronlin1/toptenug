@@ -35,23 +35,27 @@ This ChatGPT harness did not expose a native subagent-dispatch primitive. The ap
 
 - Recovered the implementation after a sandbox runtime reset without modifying `main`.
 - Restored the complete `apps/web` workspace from the verified implementation branch after an incomplete GitHub subtree push.
+- Restored and ported the complete backend API/domain/ingestion/intelligence/quarterly/ranking/source/E2E verification suites to the current production interfaces.
 - Fixed Vitest/Playwright suite separation so unit tests do not collect E2E specs.
+- Fixed frontend/backend runtime contracts for dashboard, leaderboard, profiles/history, methodology, and canonical share metadata.
 - Fixed CI commands to execute from their project roots.
 - Fixed Gemini, GitHub-adapter and derived-metric typing boundaries instead of weakening static checks.
 - Added PyYAML type stubs so mypy remains active.
+- Added deterministic direct `METRIC` and `TREND` ranking entry points alongside the versioned `INDEX` engine.
+- Corrected GitHub 90-day activity semantics, explicit UTC query windows, provenance, fork filtering, and retryable rate-limit behavior.
 - Remediated the GitGuardian local-development database password finding from historical commit `f81487f`; active feature configuration contains no hard-coded database password.
 
 ## Release-gate evidence
 
-GitHub Actions run `36228762469` (run #112), head `870d832d54cb232a4f40b15a0bd43e0c581fb88c`:
+GitHub Actions run `36229704779` (run #134), head `74a7a533bd7b63ab130f3178662cb3876aeb7444`:
 
 ### Core
 
 - dependency sync: PASS
-- Alembic upgrade: PASS
+- Alembic upgrade → downgrade → upgrade: PASS
 - Ruff: PASS
-- mypy: PASS
-- pytest: PASS
+- mypy: PASS (`38` source files)
+- pytest: PASS (`38 passed`; one upstream Starlette/httpx deprecation warning)
 
 ### Web
 
@@ -61,11 +65,18 @@ GitHub Actions run `36228762469` (run #112), head `870d832d54cb232a4f40b15a0bd43
 - Playwright browser install: PASS
 - Playwright desktop/mobile tests: PASS
 
-## Final review gates still required after this ledger commit
+## Final whole-branch review
 
-- CI must pass again on the exact final branch head.
-- Confirm `main` remains unchanged from base.
-- Confirm ranking package contains no Google/Gemini/search dependency.
-- Confirm public leaderboard limits remain exactly 10/20/30/50.
-- Confirm share-card rank and score derive from immutable published result IDs.
-- Confirm no merge is performed until all final gates are green.
+- `main` remains unchanged at base `62170377080cc92e84a554ed7d12088a78cfab45`.
+- Ranking engine imports only TopTenUG domain/ranking modules and has no Google/Gemini/search dependency.
+- Gemini/Google remains an evidence/discovery support boundary and cannot emit official score/rank fields.
+- Public leaderboard limits remain exactly `10`, `20`, `30`, and `50`.
+- Share metadata is resolved from immutable published `rankingResultId`; arbitrary client rank/score query values cannot replace official values.
+- Failed validation keeps the previous official snapshot intact.
+- Full E2E fixture proves discovery-order independence and source → evidence → eligibility → metrics → TopTenUG algorithm → publish → public API/profile/history/share flow.
+- Active development/CI configuration contains no hard-coded database password.
+- No merge has been performed.
+
+## Integration status
+
+Implementation and release gates are complete on the feature branch. The branch remains unmerged pending the human integration decision.
