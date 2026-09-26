@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.dashboard import router as dashboard_router
 from app.api.entities import router as entities_router
 from app.api.methodology import router as methodology_router
+from app.api.preview import router as preview_router
 from app.api.rankings import router as rankings_router
 from app.config import get_settings
 from app.db import engine
@@ -26,6 +27,7 @@ app.add_middleware(
 )
 app.include_router(dashboard_router)
 app.include_router(rankings_router)
+app.include_router(preview_router)
 app.include_router(entities_router)
 app.include_router(methodology_router)
 
