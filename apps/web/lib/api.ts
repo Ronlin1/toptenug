@@ -54,4 +54,19 @@ export type EntityResponse = {
 
 export type EntityHistoryResponse = { slug: string; history: Array<{ ranking: string; quarter: string; rank: number; score: number }> };
 export type MethodologyResponse = { name:string; version:string; ranking_type:string; eligibility_policy:string; missing_data_policy:string; minimum_factor_coverage:number; tie_breaker:string; factors:Array<{name:string;weight:number;metric:string;normalization:string}>; limitations:string[] };
-export type ShareMetadata = { ranking_result_id:string; entity_id:string; slug:string; name:string; category:string; quarter:string; ranking_type:string; algorithm_name:string; algorithm_version:string; rank:number; score:number; previous_rank:number|null; movement:number|null; canonical_url:string };
+export type ShareMetadata = {
+  ranking_result_id: string;
+  rank: number;
+  score: number;
+  movement: number | null;
+  entity_name: string;
+  entity_slug: string;
+  category_name: string;
+  category_slug: string;
+  ranking_type: string;
+  quarter: string;
+  algorithm_name: string;
+  algorithm_version: string;
+  canonical_url: string;
+  image_path: string;
+};
