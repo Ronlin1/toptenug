@@ -3,7 +3,7 @@
 **Date:** 2026-09-26  
 **Branch:** `feat/phase2-live-data`  
 **Depends on:** `feat/toptenug-mvp-vertical`  
-**Status:** Design approved in conversation; written-spec review pending
+**Status:** Self-reviewed; written-spec user review pending
 
 ## 1. Purpose
 
@@ -50,12 +50,12 @@ Phase 2 is complete when all of the following are demonstrated in production or 
 3. Long-running discovery/ingestion/derive/validate/publish operations run as Cloud Run Jobs.
 4. Supabase PostgreSQL is the persistent production database and `pgvector` is enabled for future semantic retrieval.
 5. Runtime secrets are not committed to Git and are supplied through managed environment/secret systems.
-6. At least 50 plausible Uganda-linked GitHub developer candidates are discovered for review.
-7. At least 20 candidates have sufficient evidence to reach an approved Uganda-eligibility state for the first public ranking pool.
+6. At least **100 plausible Uganda-linked GitHub developer candidates** are discovered for review before claiming a national first release.
+7. At least **50 candidates** have sufficient evidence to reach an approved Uganda-eligibility state and satisfy the GitHub Developers category requirements before the first official national Top 50 is published.
 8. GitHub hard metrics are ingested with immutable provenance and timestamps.
 9. `DevRankUG` produces deterministic INDEX rankings over the approved pool.
 10. At least one direct METRIC leaderboard and one TREND leaderboard are generated from observed data.
-11. A public preview can be browsed before quarter close, but is explicitly labelled provisional/non-official.
+11. A public preview can be browsed before quarter close only through a distinct **PROVISIONAL** ranking state/surface and is explicitly labelled non-official.
 12. The official 2026-Q3 snapshot is not frozen before the quarter ends.
 13. The official 2026-Q3 data cutoff is **2026-09-30 23:59:59 Africa/Kampala** (`2026-09-30T20:59:59Z`).
 14. The official 2026-Q3 snapshot is published only after eligibility, anomaly, provenance, and algorithm-version validation pass.
@@ -126,6 +126,7 @@ Vercel must not receive a production database service-role credential. The brows
 The FastAPI Cloud Run service provides:
 
 - public published ranking reads;
+- explicitly separate provisional-preview reads;
 - dashboard/category/profile/history/methodology APIs;
 - canonical share metadata;
 - health/readiness endpoints;
@@ -162,9 +163,9 @@ Three logical environments are sufficient:
 
 - Vercel preview deployment.
 - staging Cloud Run service/jobs.
-- staging Supabase project or isolated staging schema/project.
+- staging Supabase project or isolated staging project/schema.
 - non-production Gemini/GitHub credentials where possible.
-- may publish `PREVIEW` ranking runs, never `PUBLISHED` production snapshots.
+- may create `PROVISIONAL` ranking runs, never production `PUBLISHED` snapshots.
 
 ### 5.3 Production
 
@@ -173,6 +174,7 @@ Three logical environments are sufficient:
 - production Supabase database.
 - production secrets in managed secret stores.
 - only validated official `PUBLISHED` ranking runs are exposed as official rankings.
+- `PROVISIONAL` results, when exposed, are visually and API-level distinct from official results.
 
 ## 6. Database connectivity
 
@@ -262,11 +264,13 @@ Candidate record captures:
 
 Gemini output alone is never sufficient evidence.
 
-### 8.3 Discovery goal
+### 8.3 Discovery and launch pool
 
-The first live data campaign targets at least **50 plausible candidates**, with a goal of at least **20 approved eligible candidates** before publishing the initial official TopTenUG GitHub Developers list.
+The first live data campaign targets at least **100 plausible candidates**. The first official national Top 50 requires at least **50 approved, category-eligible candidates**.
 
-This is a minimum launch pool, not an assertion that the universe is complete. The methodology page must disclose candidate-discovery limitations.
+A provisional preview may operate with a smaller reviewed pool if the UI clearly displays the pool size and the fact that discovery/review is still in progress.
+
+Even 100 discovered candidates is not proof that the Uganda developer universe is exhaustive. The methodology page must disclose discovery coverage and candidate-universe limitations.
 
 ## 9. Uganda eligibility for the live ranking
 
@@ -276,13 +280,18 @@ For the first GitHub Developers category, eligible people must have evidence sup
 
 - `UGANDAN_IN_UGANDA`
 - `UGANDAN_DIASPORA`
-- `UGANDA_BASED_NON_UGANDAN` only if the category's published eligibility policy explicitly includes Uganda-based builders regardless of nationality
 
-For the initial public category, the default policy is:
+`UGANDA_BASED_NON_UGANDAN` is excluded from the official **Ugandan GitHub Developers** category. If TopTenUG later creates a separately named **Uganda-based GitHub Developers** category, that category may define a different eligibility policy.
 
-> Include Ugandan developers in Uganda and Ugandan developers in the diaspora. Exclude non-Ugandan Uganda-based developers from the official `Ugandan GitHub Developers` category unless a separately named `Uganda-based GitHub Developers` category is created.
+Additional category requirements for the first official list:
 
-Ambiguous nationality/residency evidence remains `REVIEW_REQUIRED` and cannot enter the official pool.
+- resolvable public GitHub identity;
+- evidence-backed eligible Uganda relationship;
+- sufficient hard-metric observations to satisfy the published factor-coverage threshold;
+- no unresolved duplicate/entity conflict;
+- no unresolved anomaly that blocks publication.
+
+Ambiguous nationality/residency evidence remains `REVIEW_REQUIRED` and cannot enter the official pool. Names, appearance, language, or an LLM guess are never sufficient to establish eligibility.
 
 ## 10. Evidence hierarchy
 
@@ -361,6 +370,19 @@ Published ranking results persist:
 
 The ranking package must continue to have no dependency on Gemini, search APIs, prompt output, or LLM client libraries.
 
+### 12.4 Provisional rankings
+
+Phase 2 introduces a distinct `PROVISIONAL` ranking-run state for preview calculations.
+
+Rules:
+
+- `PROVISIONAL` is never treated as `PUBLISHED`.
+- Official ranking endpoints continue to return only `PUBLISHED` runs.
+- Preview endpoints/routes must be visibly and structurally separate.
+- Provisional results may change as discovery, evidence review, or observations change.
+- Official share-card styling/badges are unavailable to provisional results.
+- Conversion to an official snapshot is not an in-place status flip that mutates history; official publication creates/finalizes an auditable immutable published run after validation.
+
 ## 13. 2026-Q3 timeline and freeze semantics
 
 Today is 2026-09-26, so Q3 is still open.
@@ -374,7 +396,7 @@ Through 2026-09-30:
 - ingest GitHub observations;
 - run provisional calculations;
 - test production deployment;
-- expose a public preview only if clearly labelled **Preview / Provisional — not an official quarterly ranking**.
+- expose a public preview only through the clearly labelled `PROVISIONAL` surface.
 
 ### 13.2 Official cutoff
 
@@ -420,6 +442,8 @@ It should show:
 - category cards for future universes marked appropriately;
 - methodology/transparency entry point.
 
+Before the first official Q3 release, any live-data preview must carry an obvious **Provisional / not official** banner and reviewed-pool count.
+
 ### 14.2 Leaderboard
 
 Default: Top 10.
@@ -448,7 +472,7 @@ Public profile pages may show:
 
 ### 14.4 Share cards
 
-Official visual cards are generated only from immutable published ranking-result IDs. Arbitrary query-string rank/score overrides are ignored.
+Official visual cards are generated only from immutable `PUBLISHED` ranking-result IDs. Arbitrary query-string rank/score overrides are ignored. Provisional results do not receive official card treatment.
 
 ## 15. Review/admin workflow
 
@@ -573,11 +597,12 @@ Production deployment should be a separate workflow from test CI. It should depl
 2. run Gemini/Search-assisted discovery;
 3. deduplicate identities;
 4. collect evidence;
-5. place ambiguous candidates in manual review.
+5. place ambiguous candidates in manual review;
+6. continue discovery until the launch-pool threshold is satisfied.
 
 ### Stage C — hard metrics
 
-1. ingest GitHub data for approved/review candidates;
+1. ingest GitHub data for reviewed candidates;
 2. verify provenance and idempotency;
 3. rerun to prove no accidental duplicate inflation;
 4. inspect missing/rate-limited profiles.
@@ -585,10 +610,10 @@ Production deployment should be a separate workflow from test CI. It should depl
 ### Stage D — provisional ranking
 
 1. derive metrics;
-2. run METRIC/INDEX/TREND provisional outputs;
+2. create `PROVISIONAL` METRIC/INDEX/TREND outputs;
 3. inspect factors/coverage/anomalies;
 4. verify discovery order does not affect ranking order;
-5. expose preview only with provisional labelling.
+5. expose preview only with provisional labelling and pool-size disclosure.
 
 ### Stage E — quarter close
 
@@ -643,6 +668,7 @@ After 2026-09-30 cutoff:
 - deterministic METRIC/INDEX/TREND ranking;
 - missing-data policy;
 - anomaly/coverage rules;
+- provisional-vs-published isolation;
 - share-card canonical metadata.
 
 ### Integration
@@ -667,7 +693,8 @@ After deployment:
 
 - `/health` succeeds;
 - database connection succeeds;
-- official/public ranking endpoints return only published results;
+- official/public ranking endpoints return only `PUBLISHED` results;
+- preview endpoints never masquerade as official;
 - first production discovery job records a run;
 - first GitHub ingestion job persists provenance-backed observations;
 - no external source can write official rank fields.
@@ -680,6 +707,7 @@ After deployment:
 - prefer APIs and first-party sources;
 - do not scrape authenticated/private surfaces;
 - do not infer protected/sensitive traits;
+- do not infer Uganda eligibility from names, appearance, language, or model intuition;
 - make evidence-backed corrections possible;
 - document candidate-universe limitations;
 - never present an incomplete discovery universe as exhaustive Uganda-wide truth without qualification.
@@ -713,7 +741,7 @@ Not required before the first real GitHub Developers public release:
 - a full admin dashboard;
 - automated ranking appeals;
 - universal cross-category `Top Ugandan` score;
-- live rank changes between official quarterly snapshots.
+- live official rank changes between quarterly snapshots.
 
 ## 27. Follow-on sequence
 
@@ -743,6 +771,7 @@ Google/Gemini assists discovery, extraction, grounding and verification.
 GitHub supplies hard GitHub metrics.
 TopTenUG-owned deterministic code computes every official score/rank.
 Eligibility is evidence-backed and separate from ranking strength.
+PROVISIONAL and PUBLISHED ranking runs are structurally distinct.
 Official rankings are immutable quarterly snapshots.
 Q3 2026 cannot be officially frozen before 2026-09-30 23:59:59 Africa/Kampala.
 The public interface defaults to Top 10 and never expands beyond 50.
@@ -759,9 +788,9 @@ This design intentionally decides the system boundaries and rollout semantics bu
 - Cloud Run API/job deployment definitions;
 - secret/IAM setup;
 - production/staging configuration loading;
+- `PROVISIONAL` ranking persistence/API behavior;
 - candidate discovery adapters/prompts/grounding rules;
 - review-state persistence/operator workflow;
 - production GitHub ingestion batching;
-- provisional/official publication flags;
 - deployment workflows and smoke tests;
 - real-data launch checklist for 2026-Q3.
