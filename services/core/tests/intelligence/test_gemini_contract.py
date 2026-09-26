@@ -1,5 +1,6 @@
 from app.domain.enums import EntityType
-from app.intelligence.base import CandidateProposal, CandidateRepository, DiscoveryQuery
+from app.domain.schemas import CandidateProposal, DiscoveryQuery
+from app.intelligence.base import proposal_to_candidate_record
 
 
 def test_candidate_proposal_has_no_official_rank_field():
@@ -26,8 +27,9 @@ def test_discovery_order_is_not_persisted_as_rank():
             confidence=0.8,
         ),
     ]
-    saved = CandidateRepository().save_candidate_proposals(proposals)
-    assert all(row.official_rank is None for row in saved)
+    saved = [proposal_to_candidate_record(proposal) for proposal in proposals]
+    assert all(row["official_rank"] is None for row in saved)
+    assert all(row["official_score"] is None for row in saved)
 
 
 def test_discovery_query_is_just_research_input():
