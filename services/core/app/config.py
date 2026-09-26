@@ -3,9 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import lru_cache
 from os import getenv
-from typing import Literal
+from typing import Literal, cast
 
 Environment = Literal["local", "staging", "production"]
+
+
+def _environment_env() -> Environment:
+    value = getenv("TOPTENUG_ENVIRONMENT", "local")
+    if value not in {"local", "staging", "production"}:
+        raise ValueError("TOPTENUG_ENVIRONMENT must be local, staging, or production")
+    return cast(Environment, value)
 
 
 def _csv_env(name: str, default: str = "") -> tuple[str, ...]:
@@ -21,7 +28,7 @@ def _bool_env(name: str, default: bool = False) -> bool:
 
 @dataclass
 class Settings:
-    environment: Environment = field(default_factory=lambda: getenv("TOPTENUG_ENVIRONMENT", "local"))  # type: ignore[arg-type]
+    environment: Environment = field(default_factory=_environment_env)
     database_url: str = field(
         default_factory=lambda: getenv(
             "DATABASE_URL",
@@ -47,9 +54,6 @@ class Settings:
     )
 
     def __post_init__(self) -> None:
-        if self.environment not in {"local", "staging", "production"}:
-            raise ValueError("TOPTENUG_ENVIRONMENT must be local, staging, or production")
-
         if self.environment == "local" and not self.database_admin_url:
             self.database_admin_url = self.database_url
 
