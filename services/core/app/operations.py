@@ -28,7 +28,7 @@ from app.domain.schemas import EntityRef
 from app.quarterly.validate import QuarterValidator, ValidationInput, ValidationReport
 from app.ranking.engine import CandidateMetrics, RankingEngine, ScoredCandidate
 from app.ranking.loader import AlgorithmSpec, load_algorithm_spec
-from app.sources.base import RetryableSourceError, SourceError
+from app.sources.base import RetryableSourceError
 from app.sources.github import GitHubAdapter
 
 ROLLUP_VERSION = "observation-rollup-v1"
@@ -258,14 +258,21 @@ async def ingest_github_batch(
             succeeded += 1
         except Exception as exc:
             session.rollback()
-            retryable = isinstance(exc, RetryableSourceError)
+            if isinstance(exc, RetryableSourceError):
+                retryable = True
+                retry_after_seconds = exc.retry_after_seconds
+                reset_at = exc.reset_at
+            else:
+                retryable = False
+                retry_after_seconds = None
+                reset_at = None
             failure = BatchIngestionFailure(
                 entity_id=entity_id,
                 error_type=type(exc).__name__,
                 message=str(exc),
                 retryable=retryable,
-                retry_after_seconds=exc.retry_after_seconds if retryable else None,
-                reset_at=exc.reset_at if retryable else None,
+                retry_after_seconds=retry_after_seconds,
+                reset_at=reset_at,
             )
             failures.append(failure)
             if not continue_on_error:
@@ -372,7 +379,7 @@ def _candidate_metrics(
             DerivedMetric.algorithm_version == ROLLUP_VERSION,
         )
     ).all()
-    values: defaultdict[UUID, dict[str, float]] = defaultdict(dict)
+    values: defaultdict[UUID, dict[str, float | int | None]] = defaultdict(dict)
     complete = True
     for row in rows:
         values[row.entity_id][row.metric_key] = row.value
