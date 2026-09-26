@@ -19,12 +19,13 @@ class GitHubAdapter:
         token: str | None,
         client: httpx.AsyncClient | None = None,
         now: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime] | None = None,
         api_base_url: str = "https://api.github.com",
     ) -> None:
         self._token = token
         self._client = client
         self._owns_client = client is None
-        self._now = now or (lambda: datetime.now(UTC))
+        self._now = now or clock or (lambda: datetime.now(UTC))
         self._api_base_url = api_base_url.rstrip("/")
 
     def _headers(self) -> dict[str, str]:
@@ -82,6 +83,10 @@ class GitHubAdapter:
     def _dt(value: str) -> datetime:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
+    @staticmethod
+    def _github_time(value: datetime) -> str:
+        return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
     async def collect(self, entity: EntityRef) -> list[ObservationInput]:
         client = self._client or httpx.AsyncClient(
             base_url=self._api_base_url,
@@ -112,6 +117,7 @@ class GitHubAdapter:
                 and self._dt(str(repo["pushed_at"])).astimezone(UTC) >= cutoff
             )
 
+            from_at = observed - timedelta(days=90)
             graphql_response = await self._request(
                 client,
                 "POST",
@@ -120,14 +126,14 @@ class GitHubAdapter:
                     "query": (
                         "query($login:String!,$from:DateTime!,$to:DateTime!){"
                         "user(login:$login){contributionsCollection(from:$from,to:$to){"
-                        "contributionCalendar{totalContributions} "
+                        "totalCommitContributions "
                         "totalPullRequestContributions "
                         "totalPullRequestReviewContributions}}}"
                     ),
                     "variables": {
                         "login": user,
-                        "from": (observed - timedelta(days=90)).isoformat(),
-                        "to": observed.isoformat(),
+                        "from": self._github_time(from_at),
+                        "to": self._github_time(observed),
                     },
                 },
             )
@@ -139,13 +145,9 @@ class GitHubAdapter:
                 if graphql_response.status_code == 200
                 else {}
             )
-            contributions = int(
-                collection.get("contributionCalendar", {}).get(
-                    "totalContributions",
-                    0,
-                )
-            )
-            collaboration = int(collection.get("totalPullRequestContributions", 0)) + int(
+            pull_requests = int(collection.get("totalPullRequestContributions", 0))
+            contributions = int(collection.get("totalCommitContributions", 0)) + pull_requests
+            collaboration = pull_requests + int(
                 collection.get("totalPullRequestReviewContributions", 0)
             )
 
