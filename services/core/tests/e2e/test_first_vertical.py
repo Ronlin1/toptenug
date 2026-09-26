@@ -83,10 +83,11 @@ def _run(order: list[CandidateProposal]):
         outcome = pipeline.ingest(candidate, _observations(github))
         entity = repo.entities[outcome.entity_id]
         name_by_id[entity.id] = entity.name
+        entity_evidence = next(e for e in repo.evidence if e.entity_id == entity.id)
         eligibility = EligibilityService().evaluate([
             EligibilityEvidence(
-                evidence_id=repo.evidence[0].id,
-                relation=UgandaRelation.NATIONAL,
+                evidence_id=entity_evidence.id,
+                relation=UgandaRelation.UGANDAN_IN_UGANDA,
                 confidence=0.95,
             )
         ])
@@ -115,7 +116,7 @@ def test_full_fixture_flow_is_deterministic_and_ignores_discovery_order():
     assert second_scores == first_scores
     assert second[2].algorithm_version == "1.0.0"
 
-    repo, store, run, _, results = second
+    repo, store, _, _, results = second
     public_store.reset()
     public_store.ranking_store = store
     public_store.register_category(
