@@ -11,10 +11,33 @@ class CandidateMetrics: entity_id:UUID; metrics:dict[str,float|int|None]; eligib
 @dataclass(frozen=True)
 class ScoredCandidate: entity_id:UUID; score:float; rank:int; factor_breakdown:dict[str,FactorScore]; factor_coverage:float; qualified:bool
 class RankingEngine:
+    @staticmethod
+    def _rank(rows:list[ScoredCandidate])->list[ScoredCandidate]:
+        ordered=sorted(rows,key=lambda r:(-r.score,str(r.entity_id)))
+        return [replace(r,rank=i) for i,r in enumerate(ordered,1)]
     def run(self,spec:AlgorithmSpec,candidates:list[CandidateMetrics])->list[ScoredCandidate]:
         if not candidates:return []
         scored=self._index(spec,candidates) if spec.ranking_type==RankingType.INDEX else self._metric(spec,candidates) if spec.ranking_type==RankingType.METRIC else self._trend(spec,candidates)
-        ordered=sorted(scored,key=lambda r:(-r.score,str(r.entity_id))); return [replace(r,rank=i) for i,r in enumerate(ordered,1)]
+        return self._rank(scored)
+    def run_metric(self,metric:str,candidates:list[CandidateMetrics])->list[ScoredCandidate]:
+        rows=[]
+        for c in candidates:
+            raw=c.metrics.get(metric)
+            if not c.eligible or raw is None:continue
+            value=float(raw)
+            rows.append(ScoredCandidate(c.entity_id,value,0,{'metric':FactorScore(value,None,1.0,value,'exclude_missing')},1.0,True))
+        return self._rank(rows)
+    def run_trend(self,metric:str,*,current:list[CandidateMetrics],baseline:list[CandidateMetrics])->list[ScoredCandidate]:
+        baseline_by_id={c.entity_id:c for c in baseline}
+        rows=[]
+        for c in current:
+            if not c.eligible:continue
+            prior=baseline_by_id.get(c.entity_id)
+            if prior is None:continue
+            change=percent_change(c.metrics.get(metric),prior.metrics.get(metric))
+            if change is None:continue
+            rows.append(ScoredCandidate(c.entity_id,change,0,{'trend':FactorScore(change,None,1.0,change,'require_valid_baseline')},1.0,True))
+        return self._rank(rows)
     def _index(self,spec:AlgorithmSpec,candidates:list[CandidateMetrics])->list[ScoredCandidate]:
         norm_by_metric={}
         for f in spec.factors.values():
