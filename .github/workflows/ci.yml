@@ -22,7 +22,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with: {python-version: "3.13"}
       - run: uv sync --project services/core --all-groups
-      - run: cd services/core && uv run alembic upgrade head
+      - name: Verify migrations upgrade-downgrade-upgrade
+        run: |
+          cd services/core
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
       - run: cd services/core && uv run ruff check .
       - run: cd services/core && uv run mypy app
       - run: cd services/core && uv run pytest -q
