@@ -29,5 +29,9 @@ Branch: `feat/phase2-live-data`
 - Task 3: stricter identity-conflict RED run `36274439005` produced exactly 1 failed / 51 passed: same display name with two distinct GitHub identities was not yet review-gated. Minimal conflict detection added without merging identities.
 - Task 3: CLI RED run `36274582995` produced exactly 2 failed / 52 passed: `discover --persist` and `review` command group were absent. Added persistent discovery count output plus `review list/approve/reject` commands.
 - Task 3: complete — verification run `36274703565`: migration round-trip success, Ruff success, mypy success, full pytest success. Search/discovery ordering remains non-ranking data; candidate approval is the only path that creates an eligible entity.
+- Task 4: service RED run `36274798408` failed at collection on the intended missing `ingest_github_batch` interface; migration/Ruff/mypy stayed green.
+- Task 4: service implementation added durable `IngestionRun` creation before source calls, per-entity continuation/rollback, typed retry metadata, idempotent observation reuse, and preservation of prior observations.
+- Task 4: CLI/static RED run `36274979645` produced exactly 2 failed / 57 passed for the absent `github-batch` operator surface, while review also found an unused import, exception narrowing issue, and `CandidateMetrics` dict invariance issue. All four were corrected.
+- Task 4: complete — `toptenug ingest github-batch --limit N` selects reviewed eligible GitHub entities; `--entity-file` supports explicit controlled batches. Verification run `36275177892` on head `e6c5f308`: migration round-trip success, Ruff success, mypy success, full pytest success.
 
-Status: Task 4 next.
+Status: Task 5 next.
