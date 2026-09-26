@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -29,7 +30,7 @@ def proposal(name: str, github: str, confidence: float = 0.95) -> CandidatePropo
             "website": f"https://{name.lower().replace(' ', '')}.example",
         },
         uganda_relation_claims=["Public source states this person is Ugandan"],
-        source_urls=[f"https://evidence.example/{name.lower().replace(' ', '-') }"],
+        source_urls=[f"https://evidence.example/{name.lower().replace(' ', '-')}"],
         confidence=confidence,
         review_status=ReviewStatus.PENDING,
     )
@@ -51,6 +52,37 @@ def test_persist_candidates_deduplicates_same_github_identity_independent_of_ord
         assert len(rows) == 2
         assert {row.github_login for row in rows} == {"aliceug", "bobug"}
         assert all(not hasattr(row, "rank") and not hasattr(row, "official_score") for row in rows)
+
+
+def test_same_name_with_conflicting_github_identities_stays_separate_and_review_required() -> None:
+    with make_session() as session:
+        persist_candidate_proposals(
+            session,
+            [
+                proposal("Same Name", "same-name-one"),
+                proposal("Same Name", "same-name-two"),
+            ],
+            "gemini-search",
+        )
+
+        rows = session.scalars(select(CandidateRecord).order_by(CandidateRecord.github_login)).all()
+        assert len(rows) == 2
+        assert {row.github_login for row in rows} == {"same-name-one", "same-name-two"}
+        assert all(row.review_status is ReviewStatus.REVIEW_REQUIRED for row in rows)
+
+
+def test_candidate_without_grounded_source_url_is_rejected() -> None:
+    with make_session() as session:
+        ungrounded = CandidateProposal(
+            display_name="Ungrounded",
+            entity_type=EntityType.PERSON,
+            candidate_profiles={"github": "ungrounded"},
+            source_urls=[],
+            confidence=0.9,
+        )
+
+        with pytest.raises(ValueError, match="source URL"):
+            persist_candidate_proposals(session, [ungrounded], "gemini-search")
 
 
 def test_low_confidence_candidate_enters_review_required_queue() -> None:
@@ -102,17 +134,13 @@ def test_approval_rejects_non_ugandan_relation_for_ugandan_developer_category() 
         candidate = session.scalar(select(CandidateRecord))
         assert candidate is not None
 
-        try:
+        with pytest.raises(ValueError, match="UGANDAN_IN_UGANDA or UGANDAN_DIASPORA"):
             approve_candidate(
                 session,
                 candidate.id,
                 UgandaRelation.UGANDA_BASED_NON_UGANDAN,
                 "Not eligible for this category.",
             )
-        except ValueError as exc:
-            assert "UGANDAN_IN_UGANDA or UGANDAN_DIASPORA" in str(exc)
-        else:
-            raise AssertionError("approval must reject non-Ugandan relation for this category")
 
 
 def test_reject_candidate_keeps_record_auditable_without_creating_entity() -> None:
