@@ -23,9 +23,9 @@ jobs:
         with: {python-version: "3.13"}
       - run: uv sync --project services/core --all-groups
       - run: cd services/core && uv run alembic upgrade head
-      - run: uv run --project services/core ruff check services/core
-      - run: uv run --project services/core mypy services/core/app
-      - run: uv run --project services/core pytest -q services/core/tests
+      - run: cd services/core && uv run ruff check .
+      - run: cd services/core && uv run mypy app
+      - run: cd services/core && uv run pytest -q
   web:
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +34,7 @@ jobs:
         with: {version: 10.14.0, run_install: false}
       - uses: actions/setup-node@v4
         with: {node-version: "22"}
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/web install --frozen-lockfile=false
       - run: pnpm --dir apps/web lint
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
