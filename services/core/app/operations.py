@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -464,6 +464,84 @@ def validate_quarter(session: Session, slug: str, quarter: str) -> ValidationRep
     return evaluate_snapshot(session, slug, quarter).report
 
 
+def _persist_scored_rows(session: Session, run: RankingRun, rows: list[ScoredCandidate], quarter: str) -> None:
+    for row in rows:
+        session.add(
+            RankingResult(
+                ranking_run_id=run.id,
+                entity_id=row.entity_id,
+                score=row.score,
+                rank=row.rank,
+                confidence=1.0,
+                factor_breakdown={
+                    key: {
+                        "raw_value": value.raw_value,
+                        "normalized_value": value.normalized_value,
+                        "weight": value.weight,
+                        "contribution": value.contribution,
+                        "missing_policy": value.missing_policy,
+                    }
+                    for key, value in row.factor_breakdown.items()
+                },
+                provenance_summary={
+                    "quarter": quarter,
+                    "rollup_version": ROLLUP_VERSION,
+                    "factor_coverage": row.factor_coverage,
+                },
+            )
+        )
+
+
+def _reviewed_pool_count(session: Session) -> int:
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(Entity)
+            .where(
+                Entity.is_eligible.is_(True),
+                Entity.review_status == ReviewStatus.APPROVED,
+            )
+        )
+        or 0
+    )
+
+
+def create_provisional_run(
+    session: Session,
+    slug: str,
+    quarter: str,
+    cutoff_at: datetime,
+) -> RankingRun:
+    if cutoff_at.tzinfo is None:
+        raise ValueError("cutoff_at must be timezone-aware")
+    evaluation = evaluate_snapshot(session, slug, quarter)
+    if not evaluation.rows:
+        raise ValueError("cannot create provisional ranking without qualified candidates")
+    run = RankingRun(
+        category_id=evaluation.category.id,
+        algorithm_id=evaluation.algorithm.id,
+        quarter=quarter,
+        status=RankingRunStatus.PROVISIONAL,
+        started_at=datetime.now(UTC),
+        cutoff_at=cutoff_at,
+        candidate_count=_reviewed_pool_count(session),
+        validation_details={
+            "official": False,
+            "validation_ok": evaluation.report.ok,
+            "errors": list(evaluation.report.errors),
+            "blocking_anomalies": list(evaluation.report.blocking_anomalies),
+            "ranked_count": len(evaluation.rows),
+            "algorithm_version": evaluation.algorithm.version,
+        },
+    )
+    session.add(run)
+    session.flush()
+    _persist_scored_rows(session, run, evaluation.rows, quarter)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
 def publish_quarter(session: Session, slug: str, quarter: str) -> RankingRun:
     evaluation = evaluate_snapshot(session, slug, quarter)
     run = RankingRun(
@@ -484,27 +562,7 @@ def publish_quarter(session: Session, slug: str, quarter: str) -> RankingRun:
         }
         session.commit()
         raise ValueError(f"Quarter validation failed: {run.failure_details}")
-    for row in evaluation.rows:
-        session.add(
-            RankingResult(
-                ranking_run_id=run.id,
-                entity_id=row.entity_id,
-                score=row.score,
-                rank=row.rank,
-                confidence=1.0,
-                factor_breakdown={
-                    key: {
-                        "raw_value": value.raw_value,
-                        "normalized_value": value.normalized_value,
-                        "weight": value.weight,
-                        "contribution": value.contribution,
-                        "missing_policy": value.missing_policy,
-                    }
-                    for key, value in row.factor_breakdown.items()
-                },
-                provenance_summary={"quarter": quarter, "rollup_version": ROLLUP_VERSION},
-            )
-        )
+    _persist_scored_rows(session, run, evaluation.rows, quarter)
     run.status = RankingRunStatus.PUBLISHED
     run.published_at = datetime.now(UTC)
     session.commit()
