@@ -25,5 +25,9 @@ Branch: `feat/phase2-live-data`
 - Task 1: complete — implementation through `e36101ff`; verification run `36273915623`: Ruff success, mypy success, pytest 42/42 pass. Safe `.env.example` files added; no secret values committed.
 - Task 2: RED confirmed in Actions run `36273985199`: `CandidateRecord` import absent and `PROVISIONAL` schema contract missing. The same run also exposed a Task 1 mypy defect in environment parsing; systematic debugging traced it to `getenv()` returning `str` rather than the `Environment` Literal.
 - Task 2: complete — typed environment parser fixed, `RankingRunStatus.PROVISIONAL`, `CandidateRecord`, ranking cutoff/count/validation metadata and migration `0002_phase2_live_data` added. Verification run `36274208114`: migration upgrade→downgrade→upgrade success, Ruff success, mypy success, pytest success.
+- Task 3: first RED run `36274330349` failed on the intended missing `app.ingestion.candidates` module while migration/Ruff/mypy stayed green. Candidate persistence/review service added.
+- Task 3: stricter identity-conflict RED run `36274439005` produced exactly 1 failed / 51 passed: same display name with two distinct GitHub identities was not yet review-gated. Minimal conflict detection added without merging identities.
+- Task 3: CLI RED run `36274582995` produced exactly 2 failed / 52 passed: `discover --persist` and `review` command group were absent. Added persistent discovery count output plus `review list/approve/reject` commands.
+- Task 3: complete — verification run `36274703565`: migration round-trip success, Ruff success, mypy success, full pytest success. Search/discovery ordering remains non-ranking data; candidate approval is the only path that creates an eligible entity.
 
-Status: Task 3 next.
+Status: Task 4 next.
