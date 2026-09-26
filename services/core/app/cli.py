@@ -22,7 +22,14 @@ from app.ingestion.candidates import (
     reject_candidate,
 )
 from app.intelligence.gemini import GeminiIntelligenceProvider
-from app.operations import derive_quarter, ingest_github_entity, publish_quarter, validate_quarter
+from app.operations import (
+    derive_quarter,
+    eligible_github_entity_ids,
+    ingest_github_batch,
+    ingest_github_entity,
+    publish_quarter,
+    validate_quarter,
+)
 
 app = typer.Typer(
     name="toptenug",
@@ -206,6 +213,44 @@ def ingest_github(entity: UUID = typer.Option(..., "--entity")) -> None:
             inserted = asyncio.run(ingest_github_entity(session, entity))
         counts["observations"] = inserted
         _dump({"entity": str(entity), "observations_added": inserted})
+
+
+@ingest_app.command("github-batch")
+def ingest_github_batch_command(
+    limit: int = typer.Option(25, "--limit", min=1, max=500),
+    entity_file: Path | None = typer.Option(None, "--entity-file", exists=True, dir_okay=False),
+) -> None:
+    with JobRecorder().track(
+        "ingest-github-batch",
+        limit=str(limit),
+        entity_file=str(entity_file) if entity_file else "",
+    ) as counts:
+        with _session_local()() as session:
+            if entity_file is None:
+                entity_ids = eligible_github_entity_ids(session, limit=limit)
+            else:
+                entity_ids = [
+                    UUID(line.strip())
+                    for line in entity_file.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+            result = asyncio.run(
+                ingest_github_batch(session, entity_ids, continue_on_error=True)
+            )
+        counts["attempted"] = result.attempted
+        counts["succeeded"] = result.succeeded
+        counts["failed"] = result.failed
+        counts["observations_added"] = result.observations_added
+        _dump(
+            {
+                "run_id": str(result.run_id),
+                "attempted": result.attempted,
+                "succeeded": result.succeeded,
+                "failed": result.failed,
+                "observations_added": result.observations_added,
+                "failures": [failure.as_dict() for failure in result.failures],
+            }
+        )
 
 
 @app.command()
