@@ -22,11 +22,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ rank
   const response = new ImageResponse(
     <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",justifyContent:"space-between",background:"#07120d",color:"#f5fff9",padding:"72px",fontFamily:"sans-serif"}}>
       <div style={{display:"flex",justifyContent:"space-between",fontSize:28,fontWeight:800}}><span>TOPTENUG 🇺🇬</span><span style={{color:"#7cf2a8"}}>{data.quarter}</span></div>
-      <div style={{display:"flex",flexDirection:"column"}}><span style={{color:"#9fb9aa",fontSize:28,textTransform:"uppercase",letterSpacing:4}}>{data.category.replaceAll("-"," ")}</span><span style={{fontSize:210,fontWeight:900,lineHeight:1,letterSpacing:-14}}>#{data.rank}</span><span style={{fontSize:60,fontWeight:800,marginTop:24}}>{data.name}</span><span style={{fontSize:30,color:"#7cf2a8",marginTop:20}}>{movement} this quarter · score {data.score.toFixed(1)}</span></div>
+      <div style={{display:"flex",flexDirection:"column"}}><span style={{color:"#9fb9aa",fontSize:28,textTransform:"uppercase",letterSpacing:4}}>{data.category_name}</span><span style={{fontSize:210,fontWeight:900,lineHeight:1,letterSpacing:-14}}>#{data.rank}</span><span style={{fontSize:60,fontWeight:800,marginTop:24}}>{data.entity_name}</span><span style={{fontSize:30,color:"#7cf2a8",marginTop:20}}>{movement} this quarter · score {data.score.toFixed(1)}</span></div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"end",fontSize:24,color:"#9fb9aa"}}><span>{data.algorithm_name} {data.algorithm_version}<br/>Evidence-driven. Reproducible.</span><span>TopTenUG</span></div>
     </div>,
     sizes[format],
   );
-  if (url.searchParams.get("download") === "1") response.headers.set("Content-Disposition", `attachment; filename="toptenug-${data.slug}-${data.quarter}-${format}.png"`);
+  if (url.searchParams.get("download") === "1") response.headers.set("Content-Disposition", `attachment; filename="toptenug-${data.entity_slug}-${data.quarter}-${format}.png"`);
   return response;
 }
