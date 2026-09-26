@@ -1,37 +1,68 @@
+from pathlib import Path
 from uuid import UUID
 
 import pytest
 
 from app.domain.enums import RankingRunStatus
-from app.quarterly.publish import Quarter, QuarterPublisher, QuarterValidationError
-from app.quarterly.validate import ValidationCandidate
+from app.quarterly.publish import (
+    CategorySnapshotInput,
+    InMemoryRankingStore,
+    Quarter,
+    QuarterPublisher,
+    QuarterValidationError,
+)
+from app.ranking.engine import CandidateMetrics
+from app.ranking.loader import load_algorithm_spec
 
 CATEGORY = UUID(int=10)
+SPEC = load_algorithm_spec(Path("algorithms/devrankug/v1.0.0.yaml"))
+
+
+def _candidate(entity_id: int = 1, stars: int = 100) -> CandidateMetrics:
+    return CandidateMetrics(
+        entity_id=UUID(int=entity_id),
+        metrics={
+            "github.owned_repo_stars": stars,
+            "github.contributions_90d": 80,
+            "github.active_owned_repos_180d": 5,
+            "github.followers": 100,
+            "github.prs_and_reviews_90d": 40,
+        },
+        eligible=True,
+    )
 
 
 def test_failed_validation_keeps_previous_snapshot_official():
-    publisher = QuarterPublisher()
-    publisher.set_candidates([
-        ValidationCandidate(entity_id=UUID(int=1), score=70, rank=1, factor_coverage=1.0, provenance_count=2)
-    ])
+    store = InMemoryRankingStore()
+    publisher = QuarterPublisher(store)
+    store.configure_category(CATEGORY, CategorySnapshotInput(spec=SPEC, candidates=[_candidate()]))
     previous_run = publisher.publish(Quarter(2026, 2), CATEGORY, "1.0.0")
-    publisher.set_candidates([
-        ValidationCandidate(
-            entity_id=UUID(int=1), score=99, rank=1, factor_coverage=1.0,
-            provenance_count=2, current_metric=1000, previous_metric=10,
-        )
-    ])
+
+    store.configure_category(
+        CATEGORY,
+        CategorySnapshotInput(
+            spec=SPEC,
+            candidates=[_candidate(stars=1000)],
+            metric_pairs=[("github.owned_repo_stars", 10.0, 1000.0)],
+        ),
+    )
     with pytest.raises(QuarterValidationError):
         publisher.publish(Quarter(2026, 3), CATEGORY, "1.0.0")
+
     assert publisher.current_official(CATEGORY).id == previous_run.id
-    assert publisher.failed_runs[-1].status == RankingRunStatus.FAILED
+    assert any(run.status == RankingRunStatus.FAILED for run in store.runs.values())
 
 
 def test_successful_publish_is_immutable_snapshot():
-    publisher = QuarterPublisher()
-    candidates = [ValidationCandidate(entity_id=UUID(int=1), score=80, rank=1, factor_coverage=1.0, provenance_count=2)]
-    publisher.set_candidates(candidates)
+    store = InMemoryRankingStore()
+    publisher = QuarterPublisher(store)
+    candidates = [_candidate(entity_id=1)]
+    store.configure_category(CATEGORY, CategorySnapshotInput(spec=SPEC, candidates=candidates))
     run = publisher.publish(Quarter(2026, 3), CATEGORY, "1.0.0")
-    candidates[0] = ValidationCandidate(entity_id=UUID(int=2), score=100, rank=1, factor_coverage=1.0, provenance_count=2)
-    assert run.results[0].entity_id == UUID(int=1)
+    published_results = store.results[run.id]
+
+    candidates[0] = _candidate(entity_id=2, stars=9999)
+
+    assert published_results[0].entity_id == UUID(int=1)
+    assert store.results[run.id][0].entity_id == UUID(int=1)
     assert run.status == RankingRunStatus.PUBLISHED
