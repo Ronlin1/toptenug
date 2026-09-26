@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.domain.schemas import ObservationInput
-from app.ingestion.entity_resolution import EntityIdentity, EntityResolutionService
-from app.ingestion.pipeline import InMemoryObservationStore
+from app.domain.enums import EntityType
+from app.domain.schemas import CandidateProposal, ObservationInput
+from app.ingestion.entity_resolution import EntityResolutionService
+from app.ingestion.pipeline import InMemoryIngestionRepository
 
 NOW = datetime(2026, 9, 23, tzinfo=UTC)
 
@@ -19,31 +20,42 @@ def _observation(value=10):
     )
 
 
-def test_ingestion_is_idempotent_and_never_mutates_existing_observation():
-    store = InMemoryObservationStore()
-    first = store.add(_observation(10))
-    second = store.add(_observation(99))
-    assert first is second
-    assert first.raw_value == 10
-    assert len(store.rows) == 1
-
-
-def test_ambiguous_alias_match_refuses_auto_merge():
-    result = EntityResolutionService().resolve(
-        candidate=EntityIdentity(aliases={"Ronnie"}, profiles={}),
-        existing=[
-            (UUID(int=1), EntityIdentity(aliases={"Ronnie"}, profiles={})),
-            (UUID(int=2), EntityIdentity(aliases={"Ronnie"}, profiles={})),
-        ],
+def _proposal(name: str, profile: str | None = None) -> CandidateProposal:
+    return CandidateProposal(
+        display_name=name,
+        entity_type=EntityType.PERSON,
+        candidate_profiles={"github": profile} if profile else {},
+        uganda_relation_claims=["Ugandan developer"],
+        source_urls=[profile or "https://example.com/evidence"],
+        confidence=0.95,
     )
+
+
+def test_ingestion_is_idempotent_and_never_mutates_existing_observation():
+    repo = InMemoryIngestionRepository()
+    entity = repo.create_entity(_proposal("Example", "https://github.com/example"))
+    assert repo.save_observation(entity.id, _observation(10)) is True
+    assert repo.save_observation(entity.id, _observation(99)) is False
+    assert repo.observations[0].raw_value == 10
+    assert len(repo.observations) == 1
+
+
+def test_ambiguous_name_match_refuses_auto_merge():
+    repo = InMemoryIngestionRepository()
+    repo.create_entity(_proposal("Ronnie", "https://github.com/ronnie-one"))
+    repo.create_entity(_proposal("Ronnie", "https://github.com/ronnie-two"))
+    result = EntityResolutionService(repo).resolve(_proposal("Ronnie"))
     assert result.entity_id is None
     assert result.review_required is True
+    assert result.reason == "name_only_match"
 
 
 def test_exact_external_profile_identifier_can_auto_link():
-    result = EntityResolutionService().resolve(
-        candidate=EntityIdentity(aliases={"Different Name"}, profiles={"github": "ronlin1"}),
-        existing=[(UUID(int=1), EntityIdentity(aliases={"Ronnie"}, profiles={"github": "ronlin1"}))],
+    repo = InMemoryIngestionRepository()
+    entity = repo.create_entity(_proposal("Ronnie", "https://github.com/ronlin1"))
+    result = EntityResolutionService(repo).resolve(
+        _proposal("Different Name", "https://github.com/ronlin1")
     )
-    assert result.entity_id == UUID(int=1)
+    assert result.entity_id == entity.id
     assert result.review_required is False
+    assert result.reason == "exact_profile"
