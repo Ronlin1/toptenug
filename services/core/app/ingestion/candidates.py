@@ -5,7 +5,7 @@ from hashlib import sha256
 from urllib.parse import urlparse
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain.enums import EntityType, EvidenceLevel, ReviewStatus, UgandaRelation
@@ -90,6 +90,20 @@ def _merge_discovery_sources(current: str, incoming: str) -> str:
     return ",".join(sorted(values))[:200]
 
 
+def _flag_name_conflicts(session: Session, candidate: CandidateRecord) -> None:
+    conflicts = session.scalars(
+        select(CandidateRecord).where(
+            func.lower(CandidateRecord.display_name) == candidate.display_name.casefold(),
+            CandidateRecord.normalized_identity_key != candidate.normalized_identity_key,
+        )
+    ).all()
+    if conflicts:
+        candidate.review_status = ReviewStatus.REVIEW_REQUIRED
+        for conflict in conflicts:
+            if conflict.review_status not in {ReviewStatus.APPROVED, ReviewStatus.REJECTED}:
+                conflict.review_status = ReviewStatus.REVIEW_REQUIRED
+
+
 def persist_candidate_proposals(
     session: Session,
     proposals: list[CandidateProposal],
@@ -98,12 +112,13 @@ def persist_candidate_proposals(
     created = 0
     updated = 0
     deduplicated = 0
-    review_required = 0
+    touched_keys: set[str] = set()
 
     for proposal in proposals:
         if not proposal.source_urls:
             raise ValueError("grounded candidate proposals require at least one source URL")
         identity_key = candidate_identity_key(proposal)
+        touched_keys.add(identity_key)
         existing = session.scalar(
             select(CandidateRecord).where(CandidateRecord.normalized_identity_key == identity_key)
         )
@@ -122,6 +137,8 @@ def persist_candidate_proposals(
                 review_status=proposal.review_status,
             )
             session.add(existing)
+            session.flush()
+            _flag_name_conflicts(session, existing)
             created += 1
         else:
             deduplicated += 1
@@ -146,12 +163,19 @@ def persist_candidate_proposals(
             if merged_confidence != existing.confidence:
                 existing.confidence = merged_confidence
                 changed = True
+            _flag_name_conflicts(session, existing)
             if changed:
                 updated += 1
 
-        if existing.review_status is ReviewStatus.REVIEW_REQUIRED:
-            review_required += 1
-
+    session.flush()
+    review_required = len(
+        session.scalars(
+            select(CandidateRecord.id).where(
+                CandidateRecord.normalized_identity_key.in_(touched_keys),
+                CandidateRecord.review_status == ReviewStatus.REVIEW_REQUIRED,
+            )
+        ).all()
+    )
     session.commit()
     return CandidatePersistSummary(
         proposals=len(proposals),
