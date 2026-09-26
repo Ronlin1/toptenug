@@ -7,6 +7,7 @@ Branch: `feat/phase2-live-data`
 
 - Ruling: local git worktree unavailable because this sandbox cannot resolve `github.com`; use the already-isolated GitHub branch as the workspace boundary and GitHub Actions as the executable RED/GREEN harness — cost if wrong: less convenient local iteration, but branch isolation and remote test evidence remain intact.
 - Ruling: use a temporary branch-only `phase2-dev.yml` workflow with step-level `continue-on-error` during RED phases so expected failing tests do not generate repeated failed-workflow notifications; inspect the test step conclusion directly — cost if wrong: an inattentive reader could mistake overall workflow success for test success, so every task ledger entry must record the specific step conclusion.
+- Ruling: legacy revision `0001_core_domain` imports live SQLAlchemy metadata. Rewriting historical migration 0001 mid-stream would be riskier than making Phase 2 migration `0002` idempotent against either an MVP-era or fresh schema. Phase 2 migration therefore checks existing tables/columns, leaves the new PostgreSQL enum value on downgrade, and retains the shared `vector` extension.
 
 ## Pre-flight shared-interface scan
 
@@ -22,5 +23,7 @@ Branch: `feat/phase2-live-data`
 
 - Task 1: RED confirmed in Actions run `36273756193`: 4 intended failures, 38 existing tests passed. Missing `Settings` fields/engine factories/readiness endpoint caused the failures.
 - Task 1: complete — implementation through `e36101ff`; verification run `36273915623`: Ruff success, mypy success, pytest 42/42 pass. Safe `.env.example` files added; no secret values committed.
+- Task 2: RED confirmed in Actions run `36273985199`: `CandidateRecord` import absent and `PROVISIONAL` schema contract missing. The same run also exposed a Task 1 mypy defect in environment parsing; systematic debugging traced it to `getenv()` returning `str` rather than the `Environment` Literal.
+- Task 2: complete — typed environment parser fixed, `RankingRunStatus.PROVISIONAL`, `CandidateRecord`, ranking cutoff/count/validation metadata and migration `0002_phase2_live_data` added. Verification run `36274208114`: migration upgrade→downgrade→upgrade success, Ruff success, mypy success, pytest success.
 
-Status: Task 2 next.
+Status: Task 3 next.
