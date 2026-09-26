@@ -37,6 +37,14 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv sync --project services/core --all-groups
+      - name: Migration round-trip
+        id: migrations
+        continue-on-error: true
+        run: |
+          cd services/core
+          uv run alembic upgrade head
+          uv run alembic downgrade 0001_core_domain
+          uv run alembic upgrade head
       - name: Ruff
         id: ruff
         continue-on-error: true
@@ -51,6 +59,7 @@ jobs:
         run: cd services/core && uv run pytest -q
       - name: Report conclusions
         run: |
+          echo "migrations=${{ steps.migrations.outcome }}"
           echo "ruff=${{ steps.ruff.outcome }}"
           echo "mypy=${{ steps.mypy.outcome }}"
           echo "core_tests=${{ steps.core_tests.outcome }}"
