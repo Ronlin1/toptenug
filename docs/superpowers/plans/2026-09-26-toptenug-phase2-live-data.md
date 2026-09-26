@@ -191,7 +191,7 @@ Cover:
 - same person from two grounded URLs enriches the same candidate rather than increasing the count;
 - conflicting GitHub identities with the same display name remain separate/review-required;
 - Gemini output with no source URL is rejected;
-- approval cannot use `UGANDA_BASED_NON_UGANDAN` for this category;
+- approval rejects `UGANDA_BASED_NON_UGANDAN` for the scoped `Ugandan GitHub Developers` workflow;
 - approval links evidence and creates/resolves exactly one `Entity`/`SourceAccount`.
 
 - [ ] **Step 2: Verify RED**
@@ -310,7 +310,7 @@ Prove:
 - provisional creation writes a new auditable run and never mutates a published run;
 - `/v1/rankings/{slug}` ignores provisional rows;
 - `/v1/preview/rankings/{slug}` returns only provisional rows and includes `official: false`, reviewed pool count and cutoff timestamp;
-- share metadata rejects a provisional `RankingResult.id` with 404/409 rather than rendering an official card;
+- official share metadata returns **404** for a provisional `RankingResult.id` rather than rendering an official card;
 - public limit validation remains exactly 10/20/30/50.
 
 - [ ] **Step 2: Verify RED**
@@ -342,7 +342,7 @@ Commit: `feat: add provisional ranking surface`
 - Modify: `services/core/app/operations.py`
 - Modify: `services/core/app/quarterly/validate.py`
 - Create: `services/core/tests/quarterly/test_window.py`
-- Modify: `services/core/tests/operations/test_quarter_cutoff.py` if present, otherwise create it.
+- Create: `services/core/tests/operations/test_quarter_cutoff.py`
 
 **Interfaces:**
 - Produces:
@@ -376,6 +376,8 @@ Also prove:
 - late verification is auditable and cannot silently move an observation timestamp backward.
 
 - [ ] **Step 2: Verify RED**
+
+Run: `cd services/core && uv run pytest tests/quarterly/test_window.py tests/operations/test_quarter_cutoff.py -v`
 
 - [ ] **Step 3: Replace UTC-calendar boundary logic with `QuarterWindow`**
 
@@ -428,6 +430,8 @@ def launch_readiness(session: Session, category: str, quarter: str) -> LaunchRea
 A smaller pool may still be `preview_ready=True` if it has reviewed eligible candidates and a valid provisional run.
 
 - [ ] **Step 2: Verify RED**
+
+Run: `cd services/core && uv run pytest tests/operations/test_launch_readiness.py -v`
 
 - [ ] **Step 3: Implement report + CLI**
 
@@ -539,7 +543,7 @@ Use a dedicated scheduler invoker identity; worker/service identities receive on
 
 - [ ] **Step 3: Pin current platform-specific connection behavior**
 
-Document that Supabase transaction mode uses port 6543/shared transaction pooler and does not support prepared statements; copy actual pooler host/username from the Supabase Connect output during provisioning rather than constructing them from region. Migrations use the direct connection returned by Supabase.
+Document that Supabase transaction mode uses port 6543/shared transaction pooler and does not support prepared statements; copy actual pooler host/username from the Supabase Connect output during provisioning rather than constructing them from region. Migrations use the direct connection returned by Supabase and are executed only from an environment that can reach that direct endpoint; they never fall back silently to the transaction pooler.
 
 Vercel project root is `apps/web`; `NEXT_PUBLIC_API_BASE_URL` is scoped separately for Preview and Production.
 
@@ -619,7 +623,7 @@ Commit: `feat: complete Phase 2 production platformization`
 ### Task 11: Provision staging infrastructure and prove production-equivalent connectivity
 
 **Files:**
-- Update after verification: `docs/operations/deployment.md`
+- Modify: `docs/operations/deployment.md`
 - Create: `docs/operations/deployment-records/staging.md`
 
 **Interfaces:**
@@ -670,7 +674,7 @@ Commit: `ops: record TopTenUG staging deployment`
 ### Task 12: Run the first Uganda GitHub developer discovery/review campaign
 
 **Files:**
-- Create/update: `docs/operations/data-campaigns/2026-q3-github-developers.md`
+- Create: `docs/operations/data-campaigns/2026-q3-github-developers.md`
 - No raw private data file is committed; candidate/evidence state lives in PostgreSQL.
 
 **Interfaces:**
@@ -706,7 +710,7 @@ Commit: `docs: record Q3 developer discovery campaign`
 ### Task 13: Ingest real GitHub observations and publish the provisional public preview
 
 **Files:**
-- Update: `docs/operations/data-campaigns/2026-q3-github-developers.md`
+- Modify: `docs/operations/data-campaigns/2026-q3-github-developers.md`
 - No manual rank file is created.
 
 **Interfaces:**
@@ -743,7 +747,7 @@ Commit: `docs: record Q3 provisional ranking preview`
 **Time gate:** Do not execute the official-publish steps before **2026-09-30 23:59:59 Africa/Kampala** (`2026-09-30T21:00:00Z` exclusive boundary).
 
 **Files:**
-- Update: `docs/operations/data-campaigns/2026-q3-github-developers.md`
+- Modify: `docs/operations/data-campaigns/2026-q3-github-developers.md`
 - Create: `docs/releases/2026-q3-github-developers.md`
 
 **Interfaces:**
