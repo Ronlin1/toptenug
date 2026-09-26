@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from typer.testing import CliRunner
 
 from app.cli import app
-from app.domain.enums import EntityType
+from app.domain.enums import EntityType, RankingRunStatus
 from app.domain.models import Base, CandidateRecord
 from app.domain.schemas import CandidateProposal
 
@@ -131,3 +132,42 @@ def test_github_batch_cli_reads_explicit_entity_file(monkeypatch, tmp_path: Path
 
     assert result.exit_code == 0, result.output
     assert calls["entity_ids"] == entity_ids
+
+
+def test_preview_cli_prints_nonofficial_run_metadata(monkeypatch) -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine)
+    run_id = uuid4()
+    cutoff = datetime(2026, 9, 26, 15, 0, tzinfo=UTC)
+
+    def fake_preview(_session: Session, slug: str, quarter: str, cutoff_at: datetime) -> SimpleNamespace:
+        assert slug == "github-developers"
+        assert quarter == "2026-Q3"
+        assert cutoff_at.tzinfo is not None
+        return SimpleNamespace(
+            id=run_id,
+            status=RankingRunStatus.PROVISIONAL,
+            candidate_count=17,
+            cutoff_at=cutoff,
+            validation_details={"ranked_count": 12, "algorithm_version": "1.0.0"},
+        )
+
+    monkeypatch.setattr("app.cli._session_local", lambda: factory)
+    monkeypatch.setattr("app.cli.create_provisional_run", fake_preview, raising=False)
+
+    result = runner.invoke(
+        app,
+        ["preview", "--category", "github-developers", "--quarter", "2026-Q3"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload == {
+        "algorithm_version": "1.0.0",
+        "cutoff": cutoff.isoformat(),
+        "official": False,
+        "pool_size": 17,
+        "ranked_count": 12,
+        "run_id": str(run_id),
+    }
