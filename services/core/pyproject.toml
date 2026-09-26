@@ -16,7 +16,14 @@ dependencies = [
   "typer>=0.16,<1",
 ]
 [dependency-groups]
-dev = ["mypy>=1.17,<2","pytest>=8.4,<9","pytest-asyncio>=1.1,<2","respx>=0.22,<1","ruff>=0.12,<1"]
+dev = [
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.1,<2",
+  "respx>=0.22,<1",
+  "ruff>=0.12,<1",
+  "types-PyYAML>=6.0.12",
+]
 [project.scripts]
 toptenug = "app.cli:main"
 [tool.pytest.ini_options]
