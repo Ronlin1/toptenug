@@ -18,4 +18,9 @@ Branch: `feat/phase2-live-data`
 - Tasks 6→10→14: quarter window/publish guard feeds E2E and official release. Exact Q3 exclusive boundary is `2026-09-30T21:00:00Z`.
 - Tasks 9→10→11: deployment inputs/scripts feed deliberate deploy and staging provisioning. No conflict; Task 11 is external side-effect work after Stage A.
 
-Status: setup complete; Task 1 next.
+## Progress
+
+- Task 1: RED confirmed in Actions run `36273756193`: 4 intended failures, 38 existing tests passed. Missing `Settings` fields/engine factories/readiness endpoint caused the failures.
+- Task 1: complete — implementation through `e36101ff`; verification run `36273915623`: Ruff success, mypy success, pytest 42/42 pass. Safe `.env.example` files added; no secret values committed.
+
+Status: Task 2 next.
