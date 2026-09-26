@@ -3,14 +3,22 @@ import { MetricCard } from "../components/metric-card";
 import { safeApiGet, type DashboardData } from "../lib/api";
 
 export default async function HomePage() {
-  const dashboard = await safeApiGet<DashboardData>("/v1/dashboard", { current_quarter: null, indexed_entities: 0, active_rankings: 0, published_snapshots: 0 });
+  const dashboard = await safeApiGet<DashboardData>("/v1/dashboard", {
+    current_quarter: null,
+    indexed_entities: 0,
+    active_rankings: 0,
+    published_results: 0,
+    source_links: 0,
+    biggest_movers: [],
+    categories: [],
+  });
   return <main>
     <section className="hero"><div className="eyebrow">Uganda&apos;s quarterly digital intelligence index</div><h1>Uganda,<br/>ranked by data.</h1><p className="hero-copy">Discover the people, builders, products, communities and media shaping Uganda&apos;s digital ecosystem—with evidence you can inspect and algorithms you can understand.</p></section>
     <section className="grid metrics">
       <MetricCard value={dashboard.current_quarter ?? "Building"} label="Current official index" />
       <MetricCard value={dashboard.indexed_entities.toLocaleString()} label="Entities indexed" />
       <MetricCard value={dashboard.active_rankings} label="Active ranking families" />
-      <MetricCard value={dashboard.published_snapshots} label="Quarterly snapshots" />
+      <MetricCard value={dashboard.published_results} label="Published ranked results" />
     </section>
     <div className="section-head"><div><span className="eyebrow">Explore Uganda</span><h2>Ranking universes</h2></div><p>Start with technology and open source. Media, startups, creators, research and more plug into the same evidence engine next.</p></div>
     <section className="grid cards">
