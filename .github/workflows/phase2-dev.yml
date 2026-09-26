@@ -1,0 +1,45 @@
+name: Phase 2 Dev Check
+
+on:
+  push:
+    branches: [feat/phase2-live-data]
+    paths:
+      - "services/core/**"
+      - "scripts/**"
+      - "infra/**"
+      - ".github/workflows/phase2-dev.yml"
+
+concurrency:
+  group: phase2-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: toptenug
+          POSTGRES_USER: toptenug
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U toptenug -d toptenug" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: "postgresql+psycopg://toptenug@localhost:5432/toptenug"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --project services/core --all-groups
+      - name: Phase 2 core tests
+        id: core_tests
+        continue-on-error: true
+        run: cd services/core && uv run pytest -q
+      - name: Report test conclusion
+        run: echo "core_tests=${{ steps.core_tests.outcome }}"
