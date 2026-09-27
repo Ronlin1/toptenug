@@ -33,5 +33,7 @@ Branch: `feat/phase2-live-data`
 - Task 4: service implementation added durable `IngestionRun` creation before source calls, per-entity continuation/rollback, typed retry metadata, idempotent observation reuse, and preservation of prior observations.
 - Task 4: CLI/static RED run `36274979645` produced exactly 2 failed / 57 passed for the absent `github-batch` operator surface, while review also found an unused import, exception narrowing issue, and `CandidateMetrics` dict invariance issue. All four were corrected.
 - Task 4: complete — `toptenug ingest github-batch --limit N` selects reviewed eligible GitHub entities; `--entity-file` supports explicit controlled batches. Verification run `36275177892` on head `e6c5f308`: migration round-trip success, Ruff success, mypy success, full pytest success.
+- Task 5: RED progression established provisional isolation first (`816639d`, `a15322d`) and then persistence/API implementation (`478b89b`, `cc61423`, `4b0bf39`). Final CLI RED was pinned at `61a9ccf`: `toptenug preview` was absent.
+- Task 5: complete — commit `8d7aff76` adds the preview operator command using `create_provisional_run`; output includes run ID, reviewed pool size, ranked count, cutoff, algorithm version, and `official=false`. Verification run `36296873450`: migration round-trip success, Ruff success, mypy success, full core pytest success. Official endpoints/share metadata remain isolated from `PROVISIONAL` runs.
 
-Status: Task 5 next.
+Status: Task 6 next.
