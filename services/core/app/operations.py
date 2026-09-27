@@ -26,6 +26,7 @@ from app.domain.models import (
 )
 from app.domain.schemas import EntityRef
 from app.quarterly.validate import QuarterValidator, ValidationInput, ValidationReport
+from app.quarterly.window import assert_publish_window_open, quarter_window
 from app.ranking.engine import CandidateMetrics, RankingEngine, ScoredCandidate
 from app.ranking.loader import AlgorithmSpec, load_algorithm_spec
 from app.sources.base import RetryableSourceError
@@ -44,15 +45,6 @@ def _quarter_parts(value: str) -> tuple[int, int]:
     ):
         raise ValueError("quarter must use YYYY-QN where N is 1..4")
     return int(value[:4]), int(value[6])
-
-
-def _quarter_end_exclusive(value: str) -> datetime:
-    year, quarter = _quarter_parts(value)
-    return (
-        datetime(year + 1, 1, 1, tzinfo=UTC)
-        if quarter == 4
-        else datetime(year, quarter * 3 + 1, 1, tzinfo=UTC)
-    )
 
 
 def _previous_quarter(value: str) -> str:
@@ -321,12 +313,13 @@ async def ingest_github_batch(
 
 def derive_quarter(session: Session, quarter: str) -> int:
     changed = 0
+    cutoff = quarter_window(quarter).ends_at_exclusive
     for entity in session.scalars(select(Entity).where(Entity.is_eligible.is_(True))).all():
         rows = session.scalars(
             select(Observation)
             .where(
                 Observation.entity_id == entity.id,
-                Observation.observed_at < _quarter_end_exclusive(quarter),
+                Observation.observed_at < cutoff,
             )
             .order_by(Observation.observed_at.desc())
         ).all()
@@ -349,6 +342,7 @@ def derive_quarter(session: Session, quarter: str) -> int:
                 "evidence_id": str(row.evidence_id),
                 "source_url": row.source_url,
                 "observed_at": row.observed_at.isoformat(),
+                "retrieved_at": row.retrieved_at.isoformat(),
             }
             if current is None:
                 session.add(
@@ -542,14 +536,33 @@ def create_provisional_run(
     return run
 
 
-def publish_quarter(session: Session, slug: str, quarter: str) -> RankingRun:
+def publish_quarter(
+    session: Session,
+    slug: str,
+    quarter: str,
+    *,
+    now: datetime | None = None,
+) -> RankingRun:
+    publish_clock = now or datetime.now(UTC)
+    assert_publish_window_open(quarter, publish_clock)
+    window = quarter_window(quarter)
     evaluation = evaluate_snapshot(session, slug, quarter)
     run = RankingRun(
         category_id=evaluation.category.id,
         algorithm_id=evaluation.algorithm.id,
         quarter=quarter,
         status=RankingRunStatus.DRAFT,
-        started_at=datetime.now(UTC),
+        started_at=publish_clock,
+        cutoff_at=window.ends_at_exclusive,
+        candidate_count=_reviewed_pool_count(session),
+        validation_details={
+            "official": True,
+            "validation_ok": evaluation.report.ok,
+            "errors": list(evaluation.report.errors),
+            "blocking_anomalies": list(evaluation.report.blocking_anomalies),
+            "ranked_count": len(evaluation.rows),
+            "algorithm_version": evaluation.algorithm.version,
+        },
     )
     session.add(run)
     session.flush()
@@ -564,6 +577,6 @@ def publish_quarter(session: Session, slug: str, quarter: str) -> RankingRun:
         raise ValueError(f"Quarter validation failed: {run.failure_details}")
     _persist_scored_rows(session, run, evaluation.rows, quarter)
     run.status = RankingRunStatus.PUBLISHED
-    run.published_at = datetime.now(UTC)
+    run.published_at = publish_clock
     session.commit()
     return run
