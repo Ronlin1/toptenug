@@ -23,15 +23,15 @@ export type RankingResult = {
   entity_id: string;
   entity_slug: string;
   name: string;
-  avatar_url: string | null;
+  avatar_url?: string | null;
   rank: number;
   score: number;
-  previous_rank: number | null;
-  movement: number | null;
+  previous_rank?: number | null;
+  movement?: number | null;
   confidence: number;
   factor_coverage: number;
   factor_breakdown: FactorBreakdown;
-  provenance: { source_count: number; source_urls: string[] };
+  provenance?: { source_count: number; source_urls: string[] };
   profile_url: string | null;
 };
 
@@ -47,6 +47,22 @@ export type RankingResponse = {
   limit?: number;
   results: RankingResult[];
 };
+
+export type PreviewRankingResponse = {
+  slug: string;
+  name: string;
+  quarter: string;
+  ranking_type: "METRIC" | "INDEX" | "TREND";
+  algorithm_name: string;
+  algorithm_version: string;
+  official: false;
+  reviewed_pool_count: number;
+  cutoff_at: string | null;
+  limit?: number;
+  results: RankingResult[];
+};
+
+export type DisplayRankingResponse = RankingResponse | PreviewRankingResponse;
 
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
