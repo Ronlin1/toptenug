@@ -5,8 +5,8 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.domain.enums import EntityType, RankingRunStatus, ReviewStatus, UgandaRelation
-from app.domain.models import Base, CandidateRecord, Entity, IngestionRun, RankingRun, SourceAccount
+from app.domain.enums import EntityType, EvidenceLevel, RankingRunStatus, ReviewStatus, UgandaRelation
+from app.domain.models import Base, CandidateRecord, Entity, IngestionRun, RankingRun, Source, SourceAccount
 from app.quarterly.validate import ValidationReport
 from app.readiness import launch_readiness
 
@@ -32,6 +32,14 @@ def _candidate(index: int, *, status: ReviewStatus = ReviewStatus.PENDING) -> Ca
 
 
 def _seed_candidates(session: Session, *, discovered: int, eligible: int) -> None:
+    github = Source(
+        key="github",
+        name="GitHub",
+        base_url="https://github.com",
+        evidence_level=EvidenceLevel.A,
+    )
+    session.add(github)
+    session.flush()
     candidates = [_candidate(index) for index in range(discovered)]
     session.add_all(candidates)
     session.flush()
@@ -51,7 +59,7 @@ def _seed_candidates(session: Session, *, discovered: int, eligible: int) -> Non
         session.add(
             SourceAccount(
                 entity_id=entity.id,
-                source_id=uuid4(),
+                source_id=github.id,
                 external_id=f"candidate-{index}",
                 canonical_url=f"https://github.com/candidate-{index}",
             )
