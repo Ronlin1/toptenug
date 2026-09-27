@@ -23,6 +23,7 @@ from app.ingestion.candidates import (
 )
 from app.intelligence.gemini import GeminiIntelligenceProvider
 from app.operations import (
+    create_provisional_run,
     derive_quarter,
     eligible_github_entity_ids,
     ingest_github_batch,
@@ -283,6 +284,32 @@ def validate(
         )
         if not report.ok:
             raise typer.Exit(2)
+
+
+@app.command()
+def preview(
+    category: str = typer.Option(..., "--category"),
+    quarter: str = typer.Option(..., "--quarter"),
+) -> None:
+    _validate_quarter(quarter)
+    cutoff_at = datetime.now(UTC)
+    with JobRecorder().track("preview", category=category, quarter=quarter) as counts:
+        with _session_local()() as session:
+            run = create_provisional_run(session, category, quarter, cutoff_at)
+        ranked_count = int((run.validation_details or {}).get("ranked_count", 0))
+        algorithm_version = str((run.validation_details or {}).get("algorithm_version", ""))
+        counts["provisional_runs"] = 1
+        counts["ranked_count"] = ranked_count
+        _dump(
+            {
+                "run_id": str(run.id),
+                "pool_size": run.candidate_count,
+                "ranked_count": ranked_count,
+                "cutoff": run.cutoff_at.isoformat() if run.cutoff_at else cutoff_at.isoformat(),
+                "algorithm_version": algorithm_version,
+                "official": False,
+            }
+        )
 
 
 @app.command()
