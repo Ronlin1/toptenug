@@ -5,6 +5,7 @@ on:
     branches: [feat/phase2-live-data]
     paths:
       - "services/core/**"
+      - "apps/web/**"
       - "scripts/**"
       - "infra/**"
       - ".github/workflows/phase2-dev.yml"
@@ -18,6 +19,7 @@ permissions:
 
 jobs:
   core:
+    if: ${{ !startsWith(github.event.head_commit.message, 'test(web):') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -63,3 +65,38 @@ jobs:
           echo "ruff=${{ steps.ruff.outcome }}"
           echo "mypy=${{ steps.mypy.outcome }}"
           echo "core_tests=${{ steps.core_tests.outcome }}"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pnpm --dir apps/web install --frozen-lockfile=false
+      - name: TypeScript
+        id: web_lint
+        continue-on-error: true
+        run: pnpm --dir apps/web lint
+      - name: Vitest
+        id: web_tests
+        continue-on-error: true
+        run: pnpm --dir apps/web test
+      - name: Install Playwright Chromium
+        id: browser_install
+        continue-on-error: true
+        run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Playwright
+        id: web_e2e
+        continue-on-error: true
+        run: pnpm --dir apps/web exec playwright test
+      - name: Report web conclusions
+        run: |
+          echo "web_lint=${{ steps.web_lint.outcome }}"
+          echo "web_tests=${{ steps.web_tests.outcome }}"
+          echo "browser_install=${{ steps.browser_install.outcome }}"
+          echo "web_e2e=${{ steps.web_e2e.outcome }}"
