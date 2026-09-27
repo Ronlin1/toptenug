@@ -100,3 +100,39 @@ jobs:
           echo "web_tests=${{ steps.web_tests.outcome }}"
           echo "browser_install=${{ steps.browser_install.outcome }}"
           echo "web_e2e=${{ steps.web_e2e.outcome }}"
+
+  deployment:
+    runs-on: ubuntu-latest
+    env:
+      TOPTENUG_ENVIRONMENT: staging
+      TOPTENUG_GCP_PROJECT_ID: toptenug-ci-project
+      TOPTENUG_GCP_REGION: europe-west3
+      TOPTENUG_ARTIFACT_REPOSITORY: toptenug
+      TOPTENUG_SUPABASE_REGION: eu-central-1
+      DATABASE_URL: postgresql+psycopg://postgres.project@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+      DATABASE_ADMIN_URL: postgresql+psycopg://postgres@db.project.supabase.co:5432/postgres
+      TOPTENUG_PUBLIC_BASE_URL: https://preview.toptenug.example
+      TOPTENUG_ALLOWED_ORIGINS: https://preview.toptenug.example
+      TOPTENUG_COMMIT_SHA: ${{ github.sha }}
+      TOPTENUG_PREVIEW_API_BASE_URL: https://api-staging.toptenug.example
+      TOPTENUG_PRODUCTION_API_BASE_URL: https://api.toptenug.example
+      NEXT_PUBLIC_API_BASE_URL: https://api-staging.toptenug.example
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate redacted deployment configuration
+        id: deploy_config
+        continue-on-error: true
+        run: python scripts/validate_deployment_config.py --environment staging
+      - name: Build core container
+        id: core_image
+        continue-on-error: true
+        run: docker build -f infra/cloudrun/core.Dockerfile -t toptenug-core:${{ github.sha }} .
+      - name: Build worker container
+        id: worker_image
+        continue-on-error: true
+        run: docker build -f infra/cloudrun/worker.Dockerfile -t toptenug-worker:${{ github.sha }} .
+      - name: Report deployment conclusions
+        run: |
+          echo "deploy_config=${{ steps.deploy_config.outcome }}"
+          echo "core_image=${{ steps.core_image.outcome }}"
+          echo "worker_image=${{ steps.worker_image.outcome }}"
