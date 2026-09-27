@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -30,8 +31,8 @@ class LaunchReadinessReport:
     blockers: tuple[str, ...]
 
 
-def _count(session: Session, statement: object) -> int:
-    return int(session.scalar(statement) or 0)  # type: ignore[arg-type]
+def _count(session: Session, statement: Any) -> int:
+    return int(session.scalar(statement) or 0)
 
 
 def _unresolved_duplicate_groups(session: Session) -> int:
