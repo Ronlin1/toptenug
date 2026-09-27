@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { Leaderboard } from "../components/leaderboard";
 import { ProvisionalBanner } from "../components/provisional-banner";
 import type { PreviewRankingResponse, RankingResponse } from "../lib/api";
+
+afterEach(cleanup);
 
 const preview: PreviewRankingResponse = {
   slug: "github-developers",
@@ -64,14 +66,14 @@ describe("provisional ranking experience", () => {
   it("does not expose official share actions for provisional rows", () => {
     render(<Leaderboard ranking={preview} limit={10} provisional />);
 
-    expect(screen.getByText("Jane")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /share ranking/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "Jane" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
   });
 
   it("explains an empty provisional pool instead of pretending there is an official ranking", () => {
     render(<Leaderboard ranking={{ ...preview, results: [] }} limit={10} provisional />);
 
-    expect(screen.getByText(/discovery and evidence review are still in progress/i)).toBeTruthy();
+    expect(screen.getByText("Discovery and evidence review are still in progress. No provisional rows are available yet.")).toBeTruthy();
   });
 
   it("keeps published rankings free of provisional labelling", () => {
