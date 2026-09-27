@@ -5,5 +5,9 @@ test("leaderboard route remains usable without horizontal overflow", async ({ pa
   await expect(page.getByRole("heading", { name: "Top Ugandan GitHub Developers" })).toBeVisible();
   const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   expect(fitsViewport).toBe(true);
+  await expect(page.getByRole("link", { name: "Top 10" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Top 20" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Top 30" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Top 50" })).toBeVisible();
+  await expect(page.getByText("Provisional — not an official quarterly ranking")).toHaveCount(0);
 });
