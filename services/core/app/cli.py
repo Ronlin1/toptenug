@@ -31,6 +31,7 @@ from app.operations import (
     publish_quarter,
     validate_quarter,
 )
+from app.readiness import launch_readiness
 
 app = typer.Typer(
     name="toptenug",
@@ -39,8 +40,10 @@ app = typer.Typer(
 )
 ingest_app = typer.Typer(help="Collect hard metrics from authoritative source APIs.")
 review_app = typer.Typer(help="Review grounded candidate records before ranking eligibility.")
+report_app = typer.Typer(help="Inspect launch readiness and operational quality gates.")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(review_app, name="review")
+app.add_typer(report_app, name="report")
 
 
 @dataclass
@@ -205,6 +208,17 @@ def review_reject(
                 "review_status": row.review_status.value,
             }
         )
+
+
+@report_app.command("launch-readiness")
+def report_launch_readiness(
+    category: str = typer.Option(..., "--category"),
+    quarter: str = typer.Option(..., "--quarter"),
+) -> None:
+    _validate_quarter(quarter)
+    with _session_local()() as session:
+        report = launch_readiness(session, category, quarter)
+    _dump(asdict(report))
 
 
 @ingest_app.command("github")
