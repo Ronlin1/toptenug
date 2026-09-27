@@ -2,6 +2,8 @@ import { CategoryCard } from "../components/category-card";
 import { MetricCard } from "../components/metric-card";
 import { safeApiGet, type DashboardData } from "../lib/api";
 
+const previewEnabled = process.env.NEXT_PUBLIC_ENABLE_PROVISIONAL_PREVIEW === "true";
+
 export default async function HomePage() {
   const dashboard = await safeApiGet<DashboardData>("/v1/dashboard", {
     current_quarter: null,
@@ -14,6 +16,7 @@ export default async function HomePage() {
   });
   return <main>
     <section className="hero"><div className="eyebrow">Uganda&apos;s quarterly digital intelligence index</div><h1>Uganda,<br/>ranked by data.</h1><p className="hero-copy">Discover the people, builders, products, communities and media shaping Uganda&apos;s digital ecosystem—with evidence you can inspect and algorithms you can understand.</p></section>
+    {previewEnabled ? <section className="panel"><span className="badge">Live preview</span><h2>Q3 developer discovery is underway</h2><p className="hero-copy">Explore the provisional GitHub Developers index while evidence review continues. Preview positions are not official quarterly rankings and may change before quarter close.</p><div className="actions"><a className="button secondary" href="/technology/github-developers">Explore provisional ranking</a></div></section> : null}
     <section className="grid metrics">
       <MetricCard value={dashboard.current_quarter ?? "Building"} label="Current official index" />
       <MetricCard value={dashboard.indexed_entities.toLocaleString()} label="Entities indexed" />
@@ -22,7 +25,7 @@ export default async function HomePage() {
     </section>
     <div className="section-head"><div><span className="eyebrow">Explore Uganda</span><h2>Ranking universes</h2></div><p>Start with technology and open source. Media, startups, creators, research and more plug into the same evidence engine next.</p></div>
     <section className="grid cards">
-      <CategoryCard kicker="Live first" title="Technology & Builders" description="Developers, AI/ML, data, cloud, cybersecurity, open source and emerging technology." href="/technology" />
+      <CategoryCard kicker={previewEnabled ? "Provisional preview" : "Live first"} title="Technology & Builders" description="Developers, AI/ML, data, cloud, cybersecurity, open source and emerging technology." href="/technology" />
       <CategoryCard kicker="Coming next" title="Media & Creators" description="TV, radio, YouTube, podcasts, creators and digital audience momentum." href="/" />
       <CategoryCard kicker="Coming next" title="Startups & Innovation" description="Ugandan startups, founders, products and sector-specific growth indexes." href="/" />
     </section>
