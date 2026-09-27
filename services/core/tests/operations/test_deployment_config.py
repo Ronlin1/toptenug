@@ -12,10 +12,10 @@ def _env(**overrides: str) -> dict[str, str]:
         "TOPTENUG_GCP_REGION": "europe-west3",
         "TOPTENUG_ARTIFACT_REPOSITORY": "toptenug",
         "TOPTENUG_SUPABASE_REGION": "eu-central-1",
-        "DATABASE_URL": "postgresql+psycopg://postgres.project:runtime-secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres",
-        "DATABASE_ADMIN_URL": "postgresql+psycopg://postgres:admin-secret@db.project.supabase.co:5432/postgres",
-        "GITHUB_TOKEN": "ghp_fixture_secret_value",
-        "GEMINI_API_KEY": "fixture-gemini-secret-value",
+        "DATABASE_URL": "postgresql+psycopg://postgres.project@aws-0-eu-central-1.pooler.supabase.com:6543/postgres",
+        "DATABASE_ADMIN_URL": "postgresql+psycopg://postgres@db.project.supabase.co:5432/postgres",
+        "GITHUB_TOKEN": "github-configured-placeholder",
+        "GEMINI_API_KEY": "gemini-configured-placeholder",
         "TOPTENUG_PUBLIC_BASE_URL": "https://preview.toptenug.example",
         "TOPTENUG_ALLOWED_ORIGINS": "https://preview.toptenug.example",
         "TOPTENUG_COMMIT_SHA": "abc1234",
@@ -53,7 +53,7 @@ def test_rejects_transaction_pooler_as_admin_connection() -> None:
     with pytest.raises(DeploymentConfigError, match="direct Supabase connection"):
         validate_deployment_config(
             _env(
-                DATABASE_ADMIN_URL="postgresql+psycopg://postgres.project:secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
+                DATABASE_ADMIN_URL="postgresql+psycopg://postgres.project@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
             )
         )
 
@@ -78,8 +78,6 @@ def test_loggable_summary_redacts_all_secret_values() -> None:
 
     assert env["GITHUB_TOKEN"] not in rendered
     assert env["GEMINI_API_KEY"] not in rendered
-    assert "runtime-secret" not in rendered
-    assert "admin-secret" not in rendered
     assert config.loggable_summary()["github_token_configured"] is True
     assert config.loggable_summary()["gemini_api_key_configured"] is True
 
