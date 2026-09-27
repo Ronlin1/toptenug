@@ -35,5 +35,7 @@ Branch: `feat/phase2-live-data`
 - Task 4: complete — `toptenug ingest github-batch --limit N` selects reviewed eligible GitHub entities; `--entity-file` supports explicit controlled batches. Verification run `36275177892` on head `e6c5f308`: migration round-trip success, Ruff success, mypy success, full pytest success.
 - Task 5: RED progression established provisional isolation first (`816639d`, `a15322d`) and then persistence/API implementation (`478b89b`, `cc61423`, `4b0bf39`). Final CLI RED was pinned at `61a9ccf`: `toptenug preview` was absent.
 - Task 5: complete — commit `8d7aff76` adds the preview operator command using `create_provisional_run`; output includes run ID, reviewed pool size, ranked count, cutoff, algorithm version, and `official=false`. Verification run `36296873450`: migration round-trip success, Ruff success, mypy success, full core pytest success. Official endpoints/share metadata remain isolated from `PROVISIONAL` runs.
+- Task 6: RED confirmed in run `36296975030`; migration/Ruff/mypy passed while pytest failed at collection because `app.quarterly.window` did not exist.
+- Task 6: complete — `QuarterWindow` now derives quarter boundaries in `Africa/Kampala`, making Q3's exclusive cutoff `2026-09-30T21:00:00Z`; derive excludes exact-cutoff Q4 observations, late verification preserves both source `observed_at` and later `retrieved_at`, and official publish is blocked before quarter close via an injected-aware clock. Verification run `36297114840`: migration round-trip success, Ruff success, mypy success, full core pytest success. Test-only readability cleanup `da5f5867` keeps the same literal boundary semantics.
 
-Status: Task 6 next.
+Status: Task 7 next.
