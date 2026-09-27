@@ -21,7 +21,7 @@ def test_q3_contains_last_second_before_cutoff_but_not_cutoff() -> None:
     window = quarter_window("2026-Q3")
 
     assert window.contains(datetime(2026, 9, 30, 20, 59, 59, tzinfo=UTC))
-    assert not window.contains(datetime(2026, 9, 30, 20, 59, 59, 999999, tzinfo=UTC) + __import__("datetime").timedelta(microseconds=1))
+    assert not window.contains(datetime(2026, 9, 30, 21, 0, 0, tzinfo=UTC))
 
 
 def test_publish_window_rejects_pre_cutoff_clock() -> None:
